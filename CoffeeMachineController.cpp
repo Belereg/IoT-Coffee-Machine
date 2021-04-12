@@ -84,23 +84,25 @@ private:
 
   void makeCoffee(const Rest::Request &request, Http::ResponseWriter response)
   {
-    //Very helpful -> https://kezunlin.me/post/f3c3eb8/
+    // Very helpful -> https://kezunlin.me/post/f3c3eb8/
 
     // Need to explicitly use json::parse (not just = request.body()) or else it won't work :/
     json req = json::parse(request.body());
     cout << req.dump(4); //4 spaces as tab in json
 
-    json res;
-    //i'll copy everything from request and add a status
-    res["status"] = "Coffee done :)";
-    res["type"] = req["type"];
-    res["size"] = req["size"];
+    // Set coffee
+    coffeeMachine.setCoffeeType(req["type"]);
 
-    int milkLevel = coffeeMachine.getMilkLevel();
     // Big mommy milky milkers can I drinky drink milky milk
+    int milkLevel = coffeeMachine.getMilkLevel();
     milkLevel -= 10;
     coffeeMachine.setMilkLevel(milkLevel);
 
+    // Create a json for response
+    json res;
+    res["status"] = "Coffee done :)";
+    res["type"] = coffeeMachine.getCoffeeType();
+    res["size"] = req["size"]; // I'm too lazy to do this now
 
     //int to string please kill me
     std::stringstream out;
@@ -114,22 +116,52 @@ private:
     response.send(Http::Code::Ok, res.dump(4));
   }
 
-  // Endpoint to configure one of the CoffeeMachine's settings.
-  // void setBeans(const Rest::Request& request, Http::ResponseWriter response){
-  //
-  // }
-
-  // Setting to get the settings value of one of the configurations of the CoffeeMachine
-  // void getBeans(const Rest::Request& request, Http::ResponseWriter response){
-
-  // }
-
   // Defining the class of the CoffeeMachine. It should model the entire configuration of the CoffeeMachine
   class CoffeeMachine
   {
   public:
     explicit CoffeeMachine() {}
 
+    // COFFEE TYPE
+    // Setter
+    void setCoffeeType(string value)
+    {
+      // Find index of coffee type string
+      auto it = find(coffeeTypeString.begin(), coffeeTypeString.end(), value);
+
+      if (it != coffeeTypeString.end())
+      {                                               // If found
+        int index = it - coffeeTypeString.begin();    // Get index
+        coffeeType = static_cast<COFFEE_TYPE>(index); // Int to enum
+      }
+      // We could return 0 or 1 depending if enum was found and set
+    }
+
+    // Getter
+    string getCoffeeType()
+    {
+      return coffeeTypeString[coffeeType];
+    }
+
+    // DO SAME THING FOR REST OF ENUMS
+
+    // ALSO WE COULD ADD SOME VALIDATIONS BEFORE SETTING BUT I DON'T KNOW IF WE SHOULD DO
+    // THIS HERE IN THE SETTERS, AND RETURN 0 IF VALIDATION FAILED, OR DO IT IN ROUTE FUNCTIONS
+
+    // COFFEE STRENGTH
+    // Setter
+    void setCoffeeStrength(int value)
+    {
+      coffeeStrength = value;
+    }
+
+    // Getter
+    int getCoffeeStrength()
+    {
+      return coffeeStrength;
+    }
+
+    // MILK
     // Setter
     void setMilkLevel(int value)
     {
@@ -142,26 +174,92 @@ private:
       return milkLevel;
     }
 
+    // WATER
+    // Setter
+    void setWaterLevel(int value)
+    {
+      waterLevel = value;
+    }
+
+    // Getter
+    int getWaterLevel()
+    {
+      return waterLevel;
+    }
+
+    // WEAR
+    // Setter
+    void setWearLevel(int value)
+    {
+      wearLevel = value;
+    }
+
+    // Getter
+    int getWearLevel()
+    {
+      return wearLevel;
+    }
+
+    // BEANS
+    // Setter
+    void setBeansLevel(int value)
+    {
+      beansLevel = value;
+    }
+
+    // Getter
+    int getBeansLevel()
+    {
+      return beansLevel;
+    }
+
   private:
     // Defining and instantiating settings.
     enum COFFEE_TYPE
     {
-      CAPUCCINO,
+      CAPPUCCINO,
       ESPRESSO,
       LATTE_MACHIATTO,
+      CAFFE_LATTE,
       DOPPIO,
       AMERICANO
-    } coffeeType = COFFEE_TYPE::CAPUCCINO;
+    } coffeeType = COFFEE_TYPE::CAFFE_LATTE;
 
+    // Can't find another easy way to convert string to enum and back so I'm gonna use this
+    vector<string> coffeeTypeString =
+        {"CAPPUCCINO", "ESPRESSO", "LATTE_MACHIATTO", "CAFFE_LATTE", "DOPPIO", "AMERICANO"};
+
+    //Enum names are in global scope so they must be unique => cant have CUP_SIZE::S and FOAM_SIZE::S
     enum CUP_SIZE
     {
-      S,
-      M,
-      L,
-      XL
-    } cupSize = CUP_SIZE::S;
+      CUP_S,
+      CUP_M,
+      CUP_L,
+      CUP_XL
+    } cupSize = CUP_SIZE::CUP_S;
 
-    int milkLevel = 100;
+    vector<string> cupSizeString =
+        {"CUP_S", "CUP_M", "CUP_L", "CUP_XL"};
+
+    enum FOAM_SIZE
+    {
+      FOAM_S,
+      FOAM_M,
+      FOAM_L
+    } foamSize = FOAM_SIZE::FOAM_S;
+
+    vector<string> foamSizeString =
+        {"FOAM_S", "FOAM_M", "FOAM_L"};
+
+    int coffeeStrength = 45; // 45mg - 100mg
+
+    int milkLevel = 100; // 0 - 100
+
+    int waterLevel = 100; // 0 - 100
+
+    int beansLevel = 100; // 0 - 100
+
+    int wearLevel = 100; // 0 - 100
   };
 
   // Create the lock which prevents concurrent editing of the same variable
