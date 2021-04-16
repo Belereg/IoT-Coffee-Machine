@@ -68,7 +68,8 @@ private:
     // Routes::Get(router, "/milk", Routes::bind(&CoffeeMachineController::getMilk, this));
     // Routes::Post(router, "/mink", Routes::bind(&CoffeeMachineController::setMilk, this));
 
-    //...etc, same get and post routes for each setting, health, water, whatever
+    // Clean the whole coffe machine
+    Routes::Get(router, "/clean", Routes::bind(&CoffeeMachineController::clean, this));
   }
 
   void doAuth(const Rest::Request &request, Http::ResponseWriter response)
@@ -109,6 +110,27 @@ private:
     out << milkLevel;
 
     res["milk"] = out.str();
+
+    //need to add this everytime
+    response.headers().add<Pistache::Http::Header::ContentType>(MIME(Application, Json));
+    //send back json response
+    response.send(Http::Code::Ok, res.dump(4));
+  }
+
+  void clean(const Rest::Request &request, Http::ResponseWriter response)
+  {
+    // Uncomment the follow line in order to change it's dirty level
+    // coffeeMachine.setClean(31)
+    // We can see how dirty the coffe machine is before cleaning it
+    cout << coffeeMachine.getClean();
+
+    // Set clean
+    coffeeMachine.setClean(100);
+
+    // Create a json for response
+    json res;
+    res["status"] = "Your coffe machine was cleaned";
+    res["type"] = coffeeMachine.getClean();
 
     //need to add this everytime
     response.headers().add<Pistache::Http::Header::ContentType>(MIME(Application, Json));
@@ -213,6 +235,19 @@ private:
       return beansLevel;
     }
 
+    // Clean
+    // Setter
+    void setClean(int value)
+    {
+      cleanLevel = value
+    }
+
+    // Getter
+    int getClean()
+    {
+      return cleanLevel;
+    }
+
   private:
     // Defining and instantiating settings.
     enum COFFEE_TYPE
@@ -260,6 +295,8 @@ private:
     int beansLevel = 100; // 0 - 100
 
     int wearLevel = 100; // 0 - 100
+
+    int cleanLevel = 100 // 0 - 100
   };
 
   // Create the lock which prevents concurrent editing of the same variable
