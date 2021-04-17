@@ -147,14 +147,14 @@ private:
   {
      // Uncomment the follow line in order to change it's dirty level
      // coffeeMachine.setCleanLevel(31)
-     // We can see how dirty the coffe machine is before cleaning it
+     // We can see how dirty the coffee machine is before cleaning it
      status =  coffeeMachine.getCleanLevel();
      json res;
      if (status < 70) {
       coffeeMachine.setCleanLevel(100);
-      res["status"] = "Your coffe machine was cleaned";
+      res["status"] = "Your coffee machine was cleaned";
      } else {
-       res["status"] = "Your coffe machine does not need to be cleaned";
+       res["status"] = "Your coffee machine does not need to be cleaned";
      }
      // Create a json for response
      res["type"] = coffeeMachine.getCleanLevel();
@@ -234,19 +234,6 @@ private:
     int getWaterLevel()
     {
       return waterLevel;
-    }
-
-    // WEAR
-    // Setter
-    void setWearLevel(int value)
-    {
-      wearLevel = value;
-    }
-
-    // Getter
-    int getWearLevel()
-    {
-      return wearLevel;
     }
 
     // BEANS
