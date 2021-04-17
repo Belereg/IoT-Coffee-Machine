@@ -69,7 +69,8 @@ private:
     // Routes::Post(router, "/mink", Routes::bind(&CoffeeMachineController::setMilk, this));
 
     // Clean the whole coffe machine
-    Routes::Get(router, "/clean", Routes::bind(&CoffeeMachineController::clean, this));
+    Routes::Get(router, "/cleanLevel", Routes::bind(&CoffeeMachineController::cleanLevel, this));
+    Routes::Post(router, "/clean", Routes::bind(&CoffeeMachineController::clean, this));
   }
 
   void doAuth(const Rest::Request &request, Http::ResponseWriter response)
@@ -117,25 +118,51 @@ private:
     response.send(Http::Code::Ok, res.dump(4));
   }
 
-  void clean(const Rest::Request &request, Http::ResponseWriter response)
+  void cleanLevel(const Rest::Request &request, Http::ResponseWriter response)
   {
-    // Uncomment the follow line in order to change it's dirty level
-    // coffeeMachine.setClean(31)
     // We can see how dirty the coffe machine is before cleaning it
-    cout << coffeeMachine.getClean();
-
-    // Set clean
-    coffeeMachine.setClean(100);
-
-    // Create a json for response
-    json res;
-    res["status"] = "Your coffe machine was cleaned";
-    res["type"] = coffeeMachine.getClean();
+    status = coffeeMachine.getCleanLevel();
+    switch(status) {
+      case(status < 10):
+        cout << "Super dirty - cannot make coffee until cleaned";
+        break;
+      case(status < 30 && status >= 10):
+        cout << "Dirty - will need cleaning soon";
+        break;
+      case(status < 70 && status >= 30):
+        cout << "Ok - does not need cleaning";
+        break;
+      case(status <= 100 && status >= 70):
+        cout << "Clean and in good order";
+        break;
+    }
 
     //need to add this everytime
     response.headers().add<Pistache::Http::Header::ContentType>(MIME(Application, Json));
     //send back json response
     response.send(Http::Code::Ok, res.dump(4));
+  }
+
+  void clean(const Rest::Request &request, Http::ResponseWriter response)
+  {
+     // Uncomment the follow line in order to change it's dirty level
+     // coffeeMachine.setCleanLevel(31)
+     // We can see how dirty the coffe machine is before cleaning it
+     status =  coffeeMachine.getCleanLevel();
+     json res;
+     if (status < 70) {
+      coffeeMachine.setCleanLevel(100);
+      res["status"] = "Your coffe machine was cleaned";
+     } else {
+       res["status"] = "Your coffe machine does not need to be cleaned";
+     }
+     // Create a json for response
+     res["type"] = coffeeMachine.getCleanLevel();
+
+     //need to add this everytime
+     response.headers().add<Pistache::Http::Header::ContentType>(MIME(Application, Json));
+     //send back json response
+     response.send(Http::Code::Ok, res.dump(4));
   }
 
   // Defining the class of the CoffeeMachine. It should model the entire configuration of the CoffeeMachine
@@ -237,13 +264,13 @@ private:
 
     // Clean
     // Setter
-    void setClean(int value)
+    void setCleanLevel(int value)
     {
       cleanLevel = value
     }
 
     // Getter
-    int getClean()
+    int getCleanLevel()
     {
       return cleanLevel;
     }
