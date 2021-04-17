@@ -68,7 +68,9 @@ private:
     // Routes::Get(router, "/milk", Routes::bind(&CoffeeMachineController::getMilk, this));
     // Routes::Post(router, "/mink", Routes::bind(&CoffeeMachineController::setMilk, this));
 
-    //...etc, same get and post routes for each setting, health, water, whatever
+    // Clean coffee machine
+    Routes::Get(router, "/getCleanLevel", Routes::bind(&CoffeeMachineController::cleanLevel, this));
+    Routes::Post(router, "/cleanCoffeeMachine", Routes::bind(&CoffeeMachineController::clean, this));
   }
 
   void doAuth(const Rest::Request &request, Http::ResponseWriter response)
@@ -109,6 +111,57 @@ private:
     out << milkLevel;
 
     res["milk"] = out.str();
+
+    //need to add this everytime
+    response.headers().add<Pistache::Http::Header::ContentType>(MIME(Application, Json));
+    //send back json response
+    response.send(Http::Code::Ok, res.dump(4));
+  }
+
+  void cleanLevel(const Rest::Request &request, Http::ResponseWriter response)
+  {
+    json res;
+    // We can see how dirty the coffee machine is before cleaning it
+    int cleanLevel = coffeeMachine.getCleanLevel();
+    if (cleanLevel < 10)
+    {
+      res["status"] = "Super dirty - cannot make coffee until cleaned";
+    }
+    else if (cleanLevel < 30 && cleanLevel >= 10)
+    {
+      res["status"] = "Dirty - will need cleaning soon";
+    }
+    else if (cleanLevel < 70 && cleanLevel >= 30)
+    {
+      res["status"] = "Ok - does not need cleaning";
+    }
+    else if (cleanLevel <= 100 && cleanLevel >= 70)
+    {
+      res["status"] = "Clean and in good order";
+    }
+
+    //need to add this everytime
+    response.headers().add<Pistache::Http::Header::ContentType>(MIME(Application, Json));
+    //send back json response
+    response.send(Http::Code::Ok, res.dump(4));
+  }
+
+  void clean(const Rest::Request &request, Http::ResponseWriter response)
+  {
+    // We can see how dirty the coffee machine is before cleaning it
+    int cleanLevel = coffeeMachine.getCleanLevel();
+    json res;
+    if (cleanLevel < 70)
+    {
+      coffeeMachine.setCleanLevel(100);
+      res["status"] = "Your coffee machine was cleaned";
+    }
+    else
+    {
+      res["status"] = "Your coffee machine does not need to be cleaned";
+    }
+    // Create a json for response
+    res["cleanLevel"] = coffeeMachine.getCleanLevel();
 
     //need to add this everytime
     response.headers().add<Pistache::Http::Header::ContentType>(MIME(Application, Json));
@@ -187,19 +240,6 @@ private:
       return waterLevel;
     }
 
-    // WEAR
-    // Setter
-    void setWearLevel(int value)
-    {
-      wearLevel = value;
-    }
-
-    // Getter
-    int getWearLevel()
-    {
-      return wearLevel;
-    }
-
     // BEANS
     // Setter
     void setBeansLevel(int value)
@@ -211,6 +251,19 @@ private:
     int getBeansLevel()
     {
       return beansLevel;
+    }
+
+    // Clean
+    // Setter
+    void setCleanLevel(int value)
+    {
+      cleanLevel = value;
+    }
+
+    // Getter
+    int getCleanLevel()
+    {
+      return cleanLevel;
     }
 
   private:
@@ -259,7 +312,7 @@ private:
 
     int beansLevel = 100; // 0 - 100
 
-    int wearLevel = 100; // 0 - 100
+    int cleanLevel = 100; // 0 - 100
   };
 
   // Create the lock which prevents concurrent editing of the same variable
