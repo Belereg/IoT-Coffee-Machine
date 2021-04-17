@@ -121,7 +121,7 @@ private:
   void cleanLevel(const Rest::Request &request, Http::ResponseWriter response)
   {
     // We can see how dirty the coffe machine is before cleaning it
-    status = coffeeMachine.getCleanLevel();
+    int status = coffeeMachine.getCleanLevel();
     switch(status) {
       case(status < 10):
         cout << "Super dirty - cannot make coffee until cleaned";
@@ -148,7 +148,7 @@ private:
      // Uncomment the follow line in order to change it's dirty level
      // coffeeMachine.setCleanLevel(31)
      // We can see how dirty the coffee machine is before cleaning it
-     status =  coffeeMachine.getCleanLevel();
+     int status =  coffeeMachine.getCleanLevel();
      json res;
      if (status < 70) {
       coffeeMachine.setCleanLevel(100);
