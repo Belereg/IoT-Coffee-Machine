@@ -275,6 +275,78 @@ private:
     response.send(Http::Code::Ok, res.dump(4));
   }
 
+
+  void refillResourceLevelsGet(const Rest::Request& request, Http::ResponseWriter response)
+  {
+      json res;
+
+      int milkLevel = coffeeMachine.getMilkLevel();
+      int waterLevel = coffeeMachine.getWaterLevel();
+      int beansLevel = coffeeMachine.getBeansLevel();
+
+      res["milkLevel"] = "Milk level: " + to_string(milkLevel) + "%";
+      res["waterLevel"] = "Water level : " + to_string(waterLevel) + " %";
+      res["beansLevel"] = "Beans level : " + to_string(beansLevel) + " %";
+      
+      res["status"] = if (milkLevel < 30 || waterLevel < 30 || beansLevel < 30) ? "One or more resource levels need a refill" : "Resource levels are good";
+
+      response.headers().add<Pistache::Http::Header::ContentType>(MIME(Application, Json));
+      response.send(Http::Code::Ok, res.dump(4));
+  }
+
+  void refillResourceLevelsPost(const Rest::Request& request, Http::ResponseWriter response)
+  {
+      json req = json::parse(request.body());
+      cout << req.dump(4); //4 spaces as tab in json
+
+      json res;
+
+      try 
+      {
+          if (!req["resourceType"].is_string())
+          {
+              throw 505;
+          }
+
+          string resourceType = req["resourceType"];
+          
+          switch (resourceType)
+          {
+          case "MILK":
+          {
+              coffeeMachine.setMilkLevel(100);
+              res["status"] = "Milk level has been refilled.";
+          }
+          break;
+          case "WATER":
+          {
+              coffeeMachine.setWaterLevel(100);
+              res["status"] = "Water level has been refilled.";
+          }
+          break;
+          case "BEANS":
+          {
+              coffeeMachine.setBeansLevel(100);
+              res["status"] = "Beans level has been refilled.";
+          }
+          break;
+          default: throw 505;
+              break;
+          }
+      }
+      catch (int error) 
+      {
+          res["status"] = "Invalid resource type!";
+          response.send(Http::Code::Bad_Request, res.dump(4));
+          return;
+      }
+
+      response.headers().add<Pistache::Http::Header::ContentType>(MIME(Application, Json));
+      response.send(Http::Code::Ok, res.dump(4));
+  }
+
+
+
   // Defining the class of the CoffeeMachine. It should model the entire configuration of the CoffeeMachine
   class CoffeeMachine
   {
@@ -425,6 +497,11 @@ private:
       return foamSizeString;
     }
 
+    vector<string> getResourceTypeValues()
+    {
+        return resourceTypeString;
+    }
+
   private:
     // Defining and instantiating settings.
     enum COFFEE_TYPE
@@ -440,6 +517,9 @@ private:
     // Can't find another easy way to convert string to enum and back so I'm gonna use this
     vector<string> coffeeTypeString =
         {"CAPPUCCINO", "ESPRESSO", "LATTE_MACHIATTO", "CAFFE_LATTE", "DOPPIO", "AMERICANO"};
+
+    vector<string> resourceTypeString =
+        { "MILK", "WATER", "BEANS" };
 
     //Enum names are in global scope so they must be unique => cant have CUP_SIZE::S and FOAM_SIZE::S
     enum CUP_SIZE
@@ -479,7 +559,7 @@ private:
   using Guard = std::lock_guard<Lock>;
   Lock coffeeMachineLock;
 
-  // Instance of the microwave model
+  // Instance of the microwave model // I think you mean coffee machine model
   CoffeeMachine coffeeMachine;
 
   // Defining the httpEndpoint and a router.
