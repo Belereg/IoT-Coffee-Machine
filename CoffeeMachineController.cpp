@@ -63,14 +63,6 @@ private:
     // I'm making the make coffee endpoint Post because it reads from request body and it alters the state of the machine. Sounds like post
     Routes::Post(router, "/coffee", Routes::bind(&CoffeeMachineController::makeCoffee, this));
 
-    // see beans level or refill beans container
-    // Routes::Get(router, "/beans", Routes::bind(&CoffeeMachineController::getBeans, this));
-    // Routes::Post(router, "/beans", Routes::bind(&CoffeeMachineController::setBeans, this));
-
-    // see milk level or refill milk container
-    // Routes::Get(router, "/milk", Routes::bind(&CoffeeMachineController::getMilk, this));
-    // Routes::Post(router, "/mink", Routes::bind(&CoffeeMachineController::setMilk, this));
-
     // Clean coffee machine
     Routes::Get(router, "/getCleanLevel", Routes::bind(&CoffeeMachineController::cleanLevel, this));
     Routes::Post(router, "/cleanCoffeeMachine", Routes::bind(&CoffeeMachineController::clean, this));
@@ -157,7 +149,6 @@ private:
       return;
     }
     
-
     //coffeeStrength validation
     try {
       if(!req["coffeeStrength"].is_number()){
@@ -181,31 +172,61 @@ private:
     int coffeeStrength = req["coffeeStrength"];
     string foamSize = req["foamSize"];
 
+    int availableMilk = coffeeMachine.getMilkLevel();
+    int availableWater = coffeeMachine.getWaterLevel();
+    int availableBeans = coffeeMachine.getBeansLevel();
+    int cleanLevel = coffeeMachine.getCleanLevel();
+
+    if (availableMilk < 10) { // Aici vin resursele custom de la featureul lui Samer
+      res["statusMilk"] = "Not enough milk - Refill coffee machine!";
+    }
+    if (availableWater < 10) { // Aici vin resursele custom de la featureul lui Samer
+      res["statusWater"] = "Not enough water - Refill coffee machine!";
+    }
+    if (availableBeans < 10) { // Aici vin resursele custom de la featureul lui Samer
+      res["statusBeans"] = "Not enough beans - Refill coffee machine!";
+    }
+    if (cleanLevel <= 0) { 
+      res["statusClean"] = "Too dirty - Clean coffee machine!";
+    }
+    if(res.contains("statusMilk") || res.contains("statusWater") || res.contains("statusBeans") || res.contains("statusClean")) {
+      response.send(Http::Code::Bad_Request, res.dump(4));
+      return;
+    }
+
     // Set coffee
     coffeeMachine.setCoffeeType(type);
-    // TO-DO set cupSize
-    // TO-DO set foamSize
+    coffeeMachine.setCupSize(cupSize);
+    coffeeMachine.setFoamSize(foamSize);
+    coffeeMachine.setCoffeeStrength(coffeeStrength);
 
-    int milkLevel = coffeeMachine.getMilkLevel();
-    milkLevel -= 10;
-    coffeeMachine.setMilkLevel(milkLevel);
+    availableMilk -= 10; // Aici vin resursele custom de la featureul lui Samer
+    coffeeMachine.setMilkLevel(availableMilk);
 
-    // Create a json for response
-    res["status"] = "Coffee done :)";
+    availableWater -= 10; // Aici vin resursele custom de la featureul lui Samer
+    coffeeMachine.setWaterLevel(availableWater);
+
+    availableBeans -= 10; // Aici vin resursele custom de la featureul lui Samer
+    coffeeMachine.setBeansLevel(availableBeans);
+
+    cleanLevel -= 5;
+    coffeeMachine.setCleanLevel(cleanLevel);
+
+    // Fill json for response
     res["type"] = coffeeMachine.getCoffeeType();
-    res["size"] = cupSize;
+    res["cupSize"] = coffeeMachine.getCupSize();
+    res["coffeeStrength"] = coffeeMachine.getCoffeeStrength();
+    res["foamSize"] = coffeeMachine.getFoamSize();
+    res["status"] = "Coffee done :)";
 
-    std::stringstream out;
-    out << milkLevel;
-
-    res["milk"] = out.str();
-
+    // All good - send the coffee
     response.send(Http::Code::Ok, res.dump(4));
   }
 
   void cleanLevel(const Rest::Request &request, Http::ResponseWriter response)
   {
     json res;
+    
     // We can see how dirty the coffee machine is before cleaning it
     int cleanLevel = coffeeMachine.getCleanLevel();
     if (cleanLevel < 10)
@@ -281,10 +302,47 @@ private:
       return coffeeTypeString[coffeeType];
     }
 
-    // DO SAME THING FOR REST OF ENUMS
+    // CUP SIZE
+    // Setter
+    void setCupSize(string value)
+    {
+      // Find index of coffee type string
+      auto it = find(cupSizeString.begin(), cupSizeString.end(), value);
 
-    // ALSO WE COULD ADD SOME VALIDATIONS BEFORE SETTING BUT I DON'T KNOW IF WE SHOULD DO
-    // THIS HERE IN THE SETTERS, AND RETURN 0 IF VALIDATION FAILED, OR DO IT IN ROUTE FUNCTIONS
+      if (it != cupSizeString.end())
+      {                                               // If found
+        int index = it - cupSizeString.begin();    // Get index
+        cupSize = static_cast<CUP_SIZE>(index); // Int to enum
+      }
+      // We could return 0 or 1 depending if enum was found and set
+    }
+
+    // Getter
+    string getCupSize()
+    {
+      return cupSizeString[cupSize];
+    }
+
+    // FOAM SIZE
+    // Setter
+    void setFoamSize(string value)
+    {
+      // Find index of coffee type string
+      auto it = find(foamSizeString.begin(), foamSizeString.end(), value);
+
+      if (it != foamSizeString.end())
+      {                                               // If found
+        int index = it - foamSizeString.begin();    // Get index
+        foamSize = static_cast<FOAM_SIZE>(index); // Int to enum
+      }
+      // We could return 0 or 1 depending if enum was found and set
+    }
+
+    // Getter
+    string getFoamSize()
+    {
+      return foamSizeString[foamSize];
+    }
 
     // COFFEE STRENGTH
     // Setter
