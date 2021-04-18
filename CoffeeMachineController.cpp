@@ -2,6 +2,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <sstream>
+#include <string.h>
+#include <regex>
+
 
 #include <pistache/net.h>
 #include <pistache/http.h>
@@ -71,6 +74,10 @@ private:
     // Clean coffee machine
     Routes::Get(router, "/getCleanLevel", Routes::bind(&CoffeeMachineController::cleanLevel, this));
     Routes::Post(router, "/cleanCoffeeMachine", Routes::bind(&CoffeeMachineController::clean, this));
+
+    // Led strip controller
+    Routes::Get(router, "/getLedStrip", Routes::bind(&CoffeeMachineController::LedStripState, this));
+    Routes::Post(router, "/setLedStripState", Routes::bind(&CoffeeMachineController::LedStripSet, this));
   }
 
   void doAuth(const Rest::Request &request, Http::ResponseWriter response)
@@ -162,6 +169,69 @@ private:
     }
     // Create a json for response
     res["cleanLevel"] = coffeeMachine.getCleanLevel();
+
+    //need to add this everytime
+    response.headers().add<Pistache::Http::Header::ContentType>(MIME(Application, Json));
+    //send back json response
+    response.send(Http::Code::Ok, res.dump(4));
+  }
+
+  void LedStripState(const Rest::Request &request, Http::ResponseWriter response)
+  {
+    json res;
+    // We can see how dirty the coffee machine is before cleaning it
+    string color;
+    bool state = coffeeMachine.getLedStripState();
+    if (state == false)
+    {
+      res["status"] = "LedStrip is off";
+    }
+    else 
+    {
+      
+      color=coffeeMachine.getLedStripColor();
+      res["status"]="LedStrip is on with color"+color;
+      
+    }
+    
+
+    //need to add this everytime
+    response.headers().add<Pistache::Http::Header::ContentType>(MIME(Application, Json));
+    //send back json response
+    response.send(Http::Code::Ok, res.dump(4));
+  }
+
+
+  void LedStripSet(const Rest::Request &request, Http::ResponseWriter response)
+  {
+    // Need to explicitly use json::parse (not just = request.body()) or else it won't work :/
+    json req = json::parse(request.body());
+    cout << req.dump(4); //4 spaces as tab in json
+
+    string color=req["color"];
+    string state = req["state"];
+
+    json res;
+    
+    
+    if (regex_match (state, regex("[0-1]") ) && regex_match (color, regex("#[a-zA-Z0-9]{6}") ))
+    { 
+          if (state.compare("0")==0)
+          {
+            coffeeMachine.setLedStripState(false);
+            res["status"] = "LedStrip is off";
+          }
+          else 
+          {
+            coffeeMachine.setLedStripColor(color);
+            res["status"]="LedStrip is on with color "+color;
+          }
+    }
+    else
+    {
+      res["status"] = "Input invalid";
+    }
+    
 
     //need to add this everytime
     response.headers().add<Pistache::Http::Header::ContentType>(MIME(Application, Json));
@@ -266,6 +336,32 @@ private:
       return cleanLevel;
     }
 
+    // LedStrip
+    // Setter
+    void setLedStripState(bool value)
+    {
+      ledStrip = value;
+    }
+
+    // Getter
+    bool getLedStripState()
+    {
+      return ledStrip;
+    }
+
+    // LedStrip color
+    // Setter
+    void setLedStripColor(string value)
+    {
+      ledStripcolor = value;
+    }
+
+    // Getter
+    string getLedStripColor()
+    {
+      return ledStripcolor;
+    }
+
   private:
     // Defining and instantiating settings.
     enum COFFEE_TYPE
@@ -313,6 +409,10 @@ private:
     int beansLevel = 100; // 0 - 100
 
     int cleanLevel = 100; // 0 - 100
+
+    bool ledStrip = false;
+
+    string ledStripcolor;
   };
 
   // Create the lock which prevents concurrent editing of the same variable
