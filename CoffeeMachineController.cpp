@@ -2,6 +2,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <sstream>
+#include <string>
+#include <algorithm>
+
 
 #include <pistache/net.h>
 #include <pistache/http.h>
@@ -92,29 +95,111 @@ private:
     json req = json::parse(request.body());
     cout << req.dump(4); //4 spaces as tab in json
 
-    // Set coffee
-    coffeeMachine.setCoffeeType(req["type"]);
+    json res;
+    response.headers().add<Pistache::Http::Header::ContentType>(MIME(Application, Json));
 
-    // Big mommy milky milkers can I drinky drink milky milk
+    //coffeeType validation
+    try {
+      if(!req["type"].is_string()){
+        throw 505;
+      }
+      string type = req["type"];
+      vector<string> coffeeTypeStrings = coffeeMachine.getCoffeeTypeValues();
+      auto it = find(coffeeTypeStrings.begin(), coffeeTypeStrings.end(), type);
+      if (it == coffeeTypeStrings.end())
+      {
+        throw 505;
+      } 
+    }
+    catch (int error) {
+      res["status"] = "Invalid coffee type!";
+      response.send(Http::Code::Bad_Request, res.dump(4));
+      return;
+    }
+
+    //cupSize validation
+    try {
+      if(!req["cupSize"].is_string()){
+        throw 505;
+      }
+      string cupSize = req["cupSize"];
+      vector<string> cupSizeTypeStrings = coffeeMachine.getCupSizeValues();
+      auto it = find(cupSizeTypeStrings.begin(), cupSizeTypeStrings.end(), cupSize);
+
+      if (it == cupSizeTypeStrings.end())
+      {
+        throw 505;
+      } 
+    }
+    catch (int error) {
+      res["status"] = "Invalid cup size!";
+      response.send(Http::Code::Bad_Request, res.dump(4));
+      return;
+    }
+
+    //foamSize validation
+    try {
+      if(!req["foamSize"].is_string()){
+        throw 505;
+      }
+      string foamSize = req["foamSize"];
+      vector<string> foamSizeTypeStrings = coffeeMachine.getFoamSizeValues();
+      auto it = find(foamSizeTypeStrings.begin(), foamSizeTypeStrings.end(), foamSize);
+
+      if (it == foamSizeTypeStrings.end())
+      {
+        throw 505;
+      } 
+    }
+    catch (int error) {
+      res["status"] = "Invalid foam size!";
+      response.send(Http::Code::Bad_Request, res.dump(4));
+      return;
+    }
+    
+
+    //coffeeStrength validation
+    try {
+      if(!req["coffeeStrength"].is_number()){
+        throw 505;
+      }
+      int coffeeStrength = req["coffeeStrength"];
+
+      if (coffeeStrength < 45 || coffeeStrength > 100)
+      {
+        throw 505;
+      } 
+    }
+    catch (int error) {
+      res["status"] = "Invalid coffee strength!";
+      response.send(Http::Code::Bad_Request, res.dump(4));
+      return;
+    }
+
+    string type = req["type"];
+    string cupSize = req["cupSize"];
+    int coffeeStrength = req["coffeeStrength"];
+    string foamSize = req["foamSize"];
+
+    // Set coffee
+    coffeeMachine.setCoffeeType(type);
+    // TO-DO set cupSize
+    // TO-DO set foamSize
+
     int milkLevel = coffeeMachine.getMilkLevel();
     milkLevel -= 10;
     coffeeMachine.setMilkLevel(milkLevel);
 
     // Create a json for response
-    json res;
     res["status"] = "Coffee done :)";
     res["type"] = coffeeMachine.getCoffeeType();
-    res["size"] = req["size"]; // I'm too lazy to do this now
+    res["size"] = cupSize;
 
-    //int to string please kill me
     std::stringstream out;
     out << milkLevel;
 
     res["milk"] = out.str();
 
-    //need to add this everytime
-    response.headers().add<Pistache::Http::Header::ContentType>(MIME(Application, Json));
-    //send back json response
     response.send(Http::Code::Ok, res.dump(4));
   }
 
@@ -264,6 +349,22 @@ private:
     int getCleanLevel()
     {
       return cleanLevel;
+    }
+
+
+    vector<string> getCoffeeTypeValues()
+    {
+      return coffeeTypeString;
+    }
+
+    vector<string> getCupSizeValues()
+    {
+      return cupSizeString;
+    }
+
+    vector<string> getFoamSizeValues()
+    {
+      return foamSizeString;
     }
 
   private:
