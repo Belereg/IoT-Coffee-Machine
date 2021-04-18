@@ -76,8 +76,8 @@ private:
     Routes::Post(router, "/cleanCoffeeMachine", Routes::bind(&CoffeeMachineController::clean, this));
 
     // Led strip controller
-    Routes::Get(router, "/getLedStrip", Routes::bind(&CoffeeMachineController::LedStripState, this));
-    Routes::Post(router, "/setLedStripState", Routes::bind(&CoffeeMachineController::LedStripSet, this));
+    Routes::Get(router, "/getLedStrip", Routes::bind(&CoffeeMachineController::getLedStrip, this));
+    Routes::Post(router, "/setLedStripState", Routes::bind(&CoffeeMachineController::setLedStrip, this));
   }
 
   void doAuth(const Rest::Request &request, Http::ResponseWriter response)
@@ -176,10 +176,10 @@ private:
     response.send(Http::Code::Ok, res.dump(4));
   }
 
-  void LedStripState(const Rest::Request &request, Http::ResponseWriter response)
+  void getLedStrip(const Rest::Request &request, Http::ResponseWriter response)
   {
     json res;
-    // We can see how dirty the coffee machine is before cleaning it
+    // See led strip status
     string color;
     bool state = coffeeMachine.getLedStripState();
     if (state == false)
@@ -202,41 +202,42 @@ private:
   }
 
 
-  void LedStripSet(const Rest::Request &request, Http::ResponseWriter response)
+  void setLedStrip(const Rest::Request &request, Http::ResponseWriter response)
   {
     // Need to explicitly use json::parse (not just = request.body()) or else it won't work :/
     json req = json::parse(request.body());
     cout << req.dump(4); //4 spaces as tab in json
 
     string color=req["color"];
-    string state = req["state"];
+    bool state = req["state"];
 
     json res;
     
-    
-    if (regex_match (state, regex("[0-1]") ) && regex_match (color, regex("#[a-zA-Z0-9]{6}") ))
+    //need to add this everytime
+    response.headers().add<Pistache::Http::Header::ContentType>(MIME(Application, Json));
+
+    //validate input wih regex
+    if ( regex_match (color, regex("#[a-fA-F0-9]{6}") ))
     { 
-          if (state.compare("0")==0)
+          if (!state)
           {
             coffeeMachine.setLedStripState(false);
             res["status"] = "LedStrip is off";
           }
           else 
           {
+            coffeeMachine.setLedStripState(true);
             coffeeMachine.setLedStripColor(color);
             res["status"]="LedStrip is on with color "+color;
-          }
+          }  
+          //send back json response
+          response.send(Http::Code::Ok, res.dump(4));
     }
     else
-    {
-      res["status"] = "Input invalid";
+    { 
+       //send back json response
+       response.send(Http::Code::Bad_Request, res.dump(4));
     }
-    
-
-    //need to add this everytime
-    response.headers().add<Pistache::Http::Header::ContentType>(MIME(Application, Json));
-    //send back json response
-    response.send(Http::Code::Ok, res.dump(4));
   }
 
   // Defining the class of the CoffeeMachine. It should model the entire configuration of the CoffeeMachine
