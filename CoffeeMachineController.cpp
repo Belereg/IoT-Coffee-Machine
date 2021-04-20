@@ -66,6 +66,10 @@ private:
     // Clean coffee machine
     Routes::Get(router, "/getCleanLevel", Routes::bind(&CoffeeMachineController::cleanLevel, this));
     Routes::Post(router, "/cleanCoffeeMachine", Routes::bind(&CoffeeMachineController::clean, this));
+
+    // Refill resource levels
+    Routes::Get(router, "/getResourceLevels", Routes::bind(&CoffeeMachineController::getRefillResourceLevels, this));
+    Routes::Post(router, "/refillResourceLevel", Routes::bind(&CoffeeMachineController::refillResourceLevel, this));
   }
 
   void doAuth(const Rest::Request &request, Http::ResponseWriter response)
@@ -276,7 +280,7 @@ private:
   }
 
 
-  void refillResourceLevelsGet(const Rest::Request& request, Http::ResponseWriter response)
+  void getRefillResourceLevels(const Rest::Request& request, Http::ResponseWriter response)
   {
       json res;
 
@@ -288,62 +292,58 @@ private:
       res["waterLevel"] = "Water level : " + to_string(waterLevel) + " %";
       res["beansLevel"] = "Beans level : " + to_string(beansLevel) + " %";
       
-      res["status"] = if (milkLevel < 30 || waterLevel < 30 || beansLevel < 30) ? "One or more resource levels need a refill" : "Resource levels are good";
+      res["status"] = (milkLevel < 30 || waterLevel < 30 || beansLevel < 30) ? "One or more resource levels need a refill" : "Resource levels are good";
 
       response.headers().add<Pistache::Http::Header::ContentType>(MIME(Application, Json));
       response.send(Http::Code::Ok, res.dump(4));
   }
 
-  void refillResourceLevelsPost(const Rest::Request& request, Http::ResponseWriter response)
-  {
-      json req = json::parse(request.body());
-      cout << req.dump(4); //4 spaces as tab in json
+  void refillResourceLevel(const Rest::Request & request, Http::ResponseWriter response) {
+  json req = json::parse(request.body());
+  cout << req.dump(4); //4 spaces as tab in json
 
-      json res;
+  json res;
 
-      try 
-      {
-          if (!req["resourceType"].is_string())
-          {
-              throw 505;
-          }
+  try {
+    if (!req["resourceType"].is_string()) {
+      throw 505;
+    }
 
-          string resourceType = req["resourceType"];
-          
-          switch (resourceType)
-          {
-          case "MILK":
-          {
-              coffeeMachine.setMilkLevel(100);
-              res["status"] = "Milk level has been refilled.";
-          }
-          break;
-          case "WATER":
-          {
-              coffeeMachine.setWaterLevel(100);
-              res["status"] = "Water level has been refilled.";
-          }
-          break;
-          case "BEANS":
-          {
-              coffeeMachine.setBeansLevel(100);
-              res["status"] = "Beans level has been refilled.";
-          }
-          break;
-          default: throw 505;
-              break;
-          }
+    string resourceType = req["resourceType"];
+
+    if (resourceType == "MILK") {
+      if (coffeeMachine.getMilkLevel() > 99) {
+        res["status"] = "Milk level is already full.";
+      } else {
+        coffeeMachine.setMilkLevel(100);
+        res["status"] = "Milk level has been refilled.";
       }
-      catch (int error) 
-      {
-          res["status"] = "Invalid resource type!";
-          response.send(Http::Code::Bad_Request, res.dump(4));
-          return;
+    } else if (resourceType == "WATER") {
+      if (coffeeMachine.getWaterLevel() > 99) {
+        res["status"] = "Water level is already full.";
+      } else {
+        coffeeMachine.setWaterLevel(100);
+        res["status"] = "Water level has been refilled.";
       }
-
-      response.headers().add<Pistache::Http::Header::ContentType>(MIME(Application, Json));
-      response.send(Http::Code::Ok, res.dump(4));
+    } else if (resourceType == "BEANS") {
+      if (coffeeMachine.getBeansLevel() > 99) {
+        res["status"] = "Beans level is already full.";
+      } else {
+        coffeeMachine.setBeansLevel(100);
+        res["status"] = "Beans level has been refilled.";
+      }
+    } else {
+      throw 505;
+    }
+  } catch (int error) {
+    res["status"] = "Invalid resource type!";
+    response.send(Http::Code::Bad_Request, res.dump(4));
+    return;
   }
+
+  response.headers().add < Pistache::Http::Header::ContentType > (MIME(Application, Json));
+  response.send(Http::Code::Ok, res.dump(4));
+}
 
 
 
