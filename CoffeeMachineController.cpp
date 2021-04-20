@@ -66,6 +66,10 @@ private:
     // Clean coffee machine
     Routes::Get(router, "/getCleanLevel", Routes::bind(&CoffeeMachineController::cleanLevel, this));
     Routes::Post(router, "/cleanCoffeeMachine", Routes::bind(&CoffeeMachineController::clean, this));
+
+    // Refill resource levels
+    Routes::Get(router, "/getResourceLevels", Routes::bind(&CoffeeMachineController::getRefillResourceLevels, this));
+    Routes::Post(router, "/refillResourceLevel", Routes::bind(&CoffeeMachineController::refillResourceLevel, this));
   }
 
   void doAuth(const Rest::Request &request, Http::ResponseWriter response)
@@ -275,6 +279,74 @@ private:
     response.send(Http::Code::Ok, res.dump(4));
   }
 
+
+  void getRefillResourceLevels(const Rest::Request& request, Http::ResponseWriter response)
+  {
+      json res;
+
+      int milkLevel = coffeeMachine.getMilkLevel();
+      int waterLevel = coffeeMachine.getWaterLevel();
+      int beansLevel = coffeeMachine.getBeansLevel();
+
+      res["milkLevel"] = "Milk level: " + to_string(milkLevel) + "%";
+      res["waterLevel"] = "Water level : " + to_string(waterLevel) + " %";
+      res["beansLevel"] = "Beans level : " + to_string(beansLevel) + " %";
+      
+      res["status"] = (milkLevel < 30 || waterLevel < 30 || beansLevel < 30) ? "One or more resource levels need a refill" : "Resource levels are good";
+
+      response.headers().add<Pistache::Http::Header::ContentType>(MIME(Application, Json));
+      response.send(Http::Code::Ok, res.dump(4));
+  }
+
+  void refillResourceLevel(const Rest::Request & request, Http::ResponseWriter response) {
+  json req = json::parse(request.body());
+  cout << req.dump(4); //4 spaces as tab in json
+
+  json res;
+
+  try {
+    if (!req["resourceType"].is_string()) {
+      throw 505;
+    }
+
+    string resourceType = req["resourceType"];
+
+    if (resourceType == "MILK") {
+      if (coffeeMachine.getMilkLevel() > 99) {
+        res["status"] = "Milk level is already full.";
+      } else {
+        coffeeMachine.setMilkLevel(100);
+        res["status"] = "Milk level has been refilled.";
+      }
+    } else if (resourceType == "WATER") {
+      if (coffeeMachine.getWaterLevel() > 99) {
+        res["status"] = "Water level is already full.";
+      } else {
+        coffeeMachine.setWaterLevel(100);
+        res["status"] = "Water level has been refilled.";
+      }
+    } else if (resourceType == "BEANS") {
+      if (coffeeMachine.getBeansLevel() > 99) {
+        res["status"] = "Beans level is already full.";
+      } else {
+        coffeeMachine.setBeansLevel(100);
+        res["status"] = "Beans level has been refilled.";
+      }
+    } else {
+      throw 505;
+    }
+  } catch (int error) {
+    res["status"] = "Invalid resource type!";
+    response.send(Http::Code::Bad_Request, res.dump(4));
+    return;
+  }
+
+  response.headers().add < Pistache::Http::Header::ContentType > (MIME(Application, Json));
+  response.send(Http::Code::Ok, res.dump(4));
+}
+
+
+
   // Defining the class of the CoffeeMachine. It should model the entire configuration of the CoffeeMachine
   class CoffeeMachine
   {
@@ -425,6 +497,11 @@ private:
       return foamSizeString;
     }
 
+    vector<string> getResourceTypeValues()
+    {
+        return resourceTypeString;
+    }
+
   private:
     // Defining and instantiating settings.
     enum COFFEE_TYPE
@@ -440,6 +517,9 @@ private:
     // Can't find another easy way to convert string to enum and back so I'm gonna use this
     vector<string> coffeeTypeString =
         {"CAPPUCCINO", "ESPRESSO", "LATTE_MACHIATTO", "CAFFE_LATTE", "DOPPIO", "AMERICANO"};
+
+    vector<string> resourceTypeString =
+        { "MILK", "WATER", "BEANS" };
 
     //Enum names are in global scope so they must be unique => cant have CUP_SIZE::S and FOAM_SIZE::S
     enum CUP_SIZE
@@ -479,7 +559,7 @@ private:
   using Guard = std::lock_guard<Lock>;
   Lock coffeeMachineLock;
 
-  // Instance of the microwave model
+  // Instance of the microwave model // I think you mean coffee machine model
   CoffeeMachine coffeeMachine;
 
   // Defining the httpEndpoint and a router.
