@@ -1,2 +1,2 @@
 CoffeeMachineController: CoffeeMachineController.cpp
-	g++ $< -o $@ -lpistache -lcrypto -lssl -lpthread
+	g++ --std=c++17 $< -o $@ -lpistache -lcrypto -lssl -lpthread

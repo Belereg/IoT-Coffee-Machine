@@ -2,9 +2,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <sstream>
-#include <string>
+#include <string.h>
+#include <regex>
 #include <algorithm>
-
 #include <pistache/net.h>
 #include <pistache/http.h>
 #include <pistache/peer.h>
@@ -65,6 +65,10 @@ private:
     // Clean coffee machine
     Routes::Get(router, "/getCleanLevel", Routes::bind(&CoffeeMachineController::cleanLevel, this));
     Routes::Post(router, "/cleanCoffeeMachine", Routes::bind(&CoffeeMachineController::clean, this));
+
+    // Led strip controller
+    Routes::Get(router, "/getLedStrip", Routes::bind(&CoffeeMachineController::getLedStrip, this));
+    Routes::Post(router, "/setLedStrip", Routes::bind(&CoffeeMachineController::setLedStrip, this));
 
     // Refill resource levels
     Routes::Get(router, "/getResourceLevels", Routes::bind(&CoffeeMachineController::getRefillResourceLevels, this));
@@ -361,6 +365,78 @@ private:
     response.send(Http::Code::Ok, res.dump(4));
   }
 
+
+  void getLedStrip(const Rest::Request &request, Http::ResponseWriter response)
+  {
+    json res;
+    // See led strip status
+    string color;
+    bool state = coffeeMachine.getLedStripState();
+    if (state == false)
+    {
+      res["status"] = "LedStrip is off";
+    }
+    else 
+    {
+      color=coffeeMachine.getLedStripColor();
+      res["status"] = "LedStrip is on with color "+color;
+    }
+    
+
+    //need to add this everytime
+    response.headers().add<Pistache::Http::Header::ContentType>(MIME(Application, Json));
+    //send back json response
+    response.send(Http::Code::Ok, res.dump(4));
+  }
+
+
+  void setLedStrip(const Rest::Request &request, Http::ResponseWriter response)
+  {
+    // Need to explicitly use json::parse (not just = request.body()) or else it won't work :/
+    json req = json::parse(request.body());
+    cout << req.dump(4); //4 spaces as tab in json
+
+    string color=req["color"];
+    
+
+    json res;
+    
+    //need to add this everytime
+    response.headers().add<Pistache::Http::Header::ContentType>(MIME(Application, Json));
+   try{
+    bool state = req["state"];
+    //validate input wih regex
+    if ( regex_match (color, regex("#[a-fA-F0-9]{6}") ))
+    { 
+          if (!state)
+          {
+            coffeeMachine.setLedStripState(false);
+            res["status"] = "LedStrip is off";
+          }
+          else 
+          {
+            coffeeMachine.setLedStripState(true);
+            coffeeMachine.setLedStripColor(color);
+            res["status"]="LedStrip is on with color "+color;
+          }  
+          //send back json response
+          response.send(Http::Code::Ok, res.dump(4));
+    }
+    else
+    { 
+       //send back json response
+       res["status"] = "Color validation failed!";
+       response.send(Http::Code::Bad_Request, res.dump(4));
+    }
+   }
+   catch(exception e)
+   {
+    res["status"] = "Setting LedStrip failed!";
+    response.send(Http::Code::Bad_Request, res.dump(4));
+   }
+  }
+
+
   void getRefillResourceLevels(const Rest::Request &request, Http::ResponseWriter response)
   {
     json res;
@@ -581,6 +657,32 @@ private:
       return cleanLevel;
     }
 
+    // LedStrip
+    // Setter
+    void setLedStripState(bool value)
+    {
+      ledStrip = value;
+    }
+
+    // Getter
+    bool getLedStripState()
+    {
+      return ledStrip;
+    }
+
+    // LedStrip color
+    // Setter
+    void setLedStripColor(string value)
+    {
+      ledStripcolor = value;
+    }
+
+    // Getter
+    string getLedStripColor()
+    {
+      return ledStripcolor;
+    }
+    
     vector<string> getCoffeeTypeValues()
     {
       return coffeeTypeString;
@@ -660,6 +762,11 @@ private:
     int beansLevel = 100; // 0 - 100
 
     int cleanLevel = 100; // 0 - 100
+
+    bool ledStrip = false;
+
+    string ledStripcolor;
+
     json coffeeRecipes = {
         {"CAPPUCCINO", {50, 5, 10, 5}},
         {"ESPRESSO", {100, 0, 10, 5}},
