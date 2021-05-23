@@ -4,8 +4,7 @@
 #include <sstream>
 #include <string.h>
 #include <regex>
-
-
+#include <algorithm>
 #include <pistache/net.h>
 #include <pistache/http.h>
 #include <pistache/peer.h>
@@ -62,22 +61,18 @@ private:
 
     // I'm making the make coffee endpoint Post because it reads from request body and it alters the state of the machine. Sounds like post
     Routes::Post(router, "/coffee", Routes::bind(&CoffeeMachineController::makeCoffee, this));
-
-    // see beans level or refill beans container
-    // Routes::Get(router, "/beans", Routes::bind(&CoffeeMachineController::getBeans, this));
-    // Routes::Post(router, "/beans", Routes::bind(&CoffeeMachineController::setBeans, this));
-
-    // see milk level or refill milk container
-    // Routes::Get(router, "/milk", Routes::bind(&CoffeeMachineController::getMilk, this));
-    // Routes::Post(router, "/mink", Routes::bind(&CoffeeMachineController::setMilk, this));
-
+    Routes::Post(router, "/customCoffee", Routes::bind(&CoffeeMachineController::setCustomRecipe, this));
     // Clean coffee machine
     Routes::Get(router, "/getCleanLevel", Routes::bind(&CoffeeMachineController::cleanLevel, this));
     Routes::Post(router, "/cleanCoffeeMachine", Routes::bind(&CoffeeMachineController::clean, this));
 
     // Led strip controller
     Routes::Get(router, "/getLedStrip", Routes::bind(&CoffeeMachineController::getLedStrip, this));
-    Routes::Post(router, "/setLedStripState", Routes::bind(&CoffeeMachineController::setLedStrip, this));
+    Routes::Post(router, "/setLedStrip", Routes::bind(&CoffeeMachineController::setLedStrip, this));
+
+    // Refill resource levels
+    Routes::Get(router, "/getResourceLevels", Routes::bind(&CoffeeMachineController::getRefillResourceLevels, this));
+    Routes::Post(router, "/refillResourceLevel", Routes::bind(&CoffeeMachineController::refillResourceLevel, this));
   }
 
   void doAuth(const Rest::Request &request, Http::ResponseWriter response)
@@ -90,7 +85,68 @@ private:
     // Send the response
     response.send(Http::Code::Ok, "Coffee machine is online.");
   }
+  string checkCoffeeReq(json req)
+  { // Validates ingredients of a custom recipe request
+    string status = "";
 
+    if (!req["milkLevel"].is_number_integer() || !req["coffeeStrength"].is_number_integer() 
+    || !req["beansLevel"].is_number_integer() || !req["waterLevel"].is_number_integer())
+    {
+      status = "Arguments for coffee details must be integer numbers!";
+      return status;
+    }
+    int milkLevel = req["milkLevel"];
+    int coffeeStrength = req["coffeeStrength"];
+    int beansLevel = req["beansLevel"];
+    int waterLevel = req["waterLevel"];
+
+    if (milkLevel > 15 || milkLevel < 0)
+      status.append("Invalid milk level! Milk level should be between 0 and 15!\n");
+    if (coffeeStrength > 100 || coffeeStrength < 0)
+      status.append("Invalid coffee level! Coffee level should be between 0 and 100!\n");
+    if (beansLevel > 10 || beansLevel < 0)
+      status.append("Invalid beans level! Beans level should be between 0 and 10!\n");
+    if (waterLevel > 10 || waterLevel < 0)
+      status.append("Invalid water level! Water level should be between 0 and 10!\n");
+
+    if (status == "")
+      status = "OK";
+    return status;
+  }
+  void setCustomRecipe(const Rest::Request &request, Http::ResponseWriter response)
+  {
+
+    response.headers().add<Pistache::Http::Header::ContentType>(MIME(Application, Json));
+    json req = json::parse(request.body());
+    json res;
+    try
+    {
+      string status = checkCoffeeReq(req);
+      if (status != "OK")
+      {
+        res["status"] = status;
+        response.send(Http::Code::Bad_Request, res.dump(4));
+        return;
+      }
+      int milkLevel = req["milkLevel"];
+      int coffeeStrength = req["coffeeStrength"];
+      int beansLevel = req["beansLevel"];
+      int waterLevel = req["waterLevel"];
+
+      vector<int> ingredients = {coffeeStrength, milkLevel, beansLevel, waterLevel};
+      coffeeMachine.setCustomRecipe(ingredients);
+      coffeeMachine.setCoffeeType("CUSTOM");
+
+      res["status"] = "Added custom recipe!";
+      response.send(Http::Code::Ok, res.dump(4));
+      return;
+    }
+    catch (exception e)
+    {
+      res["status"] = "Creating recipe failed!";
+      response.send(Http::Code::Bad_Request, res.dump(4));
+    }
+  }
   void makeCoffee(const Rest::Request &request, Http::ResponseWriter response)
   {
     // Very helpful -> https://kezunlin.me/post/f3c3eb8/
@@ -99,35 +155,168 @@ private:
     json req = json::parse(request.body());
     cout << req.dump(4); //4 spaces as tab in json
 
-    // Set coffee
-    coffeeMachine.setCoffeeType(req["type"]);
-
-    // Big mommy milky milkers can I drinky drink milky milk
-    int milkLevel = coffeeMachine.getMilkLevel();
-    milkLevel -= 10;
-    coffeeMachine.setMilkLevel(milkLevel);
-
-    // Create a json for response
     json res;
-    res["status"] = "Coffee done :)";
-    res["type"] = coffeeMachine.getCoffeeType();
-    res["size"] = req["size"]; // I'm too lazy to do this now
-
-    //int to string please kill me
-    std::stringstream out;
-    out << milkLevel;
-
-    res["milk"] = out.str();
-
-    //need to add this everytime
     response.headers().add<Pistache::Http::Header::ContentType>(MIME(Application, Json));
-    //send back json response
+
+    //coffeeType validation
+    try
+    {
+      if (!req["type"].is_string())
+      {
+        throw 505;
+      }
+      string type = req["type"];
+      vector<string> coffeeTypeStrings = coffeeMachine.getCoffeeTypeValues();
+      auto it = find(coffeeTypeStrings.begin(), coffeeTypeStrings.end(), type);
+      if (it == coffeeTypeStrings.end())
+      {
+        throw 505;
+      }
+    }
+    catch (int error)
+    {
+      res["status"] = "Invalid coffee type!";
+      response.send(Http::Code::Bad_Request, res.dump(4));
+      return;
+    }
+
+    //cupSize validation
+    try
+    {
+      if (!req["cupSize"].is_string())
+      {
+        throw 505;
+      }
+      string cupSize = req["cupSize"];
+      vector<string> cupSizeTypeStrings = coffeeMachine.getCupSizeValues();
+      auto it = find(cupSizeTypeStrings.begin(), cupSizeTypeStrings.end(), cupSize);
+
+      if (it == cupSizeTypeStrings.end())
+      {
+        throw 505;
+      }
+    }
+    catch (int error)
+    {
+      res["status"] = "Invalid cup size!";
+      response.send(Http::Code::Bad_Request, res.dump(4));
+      return;
+    }
+
+    //foamSize validation
+    try
+    {
+      if (!req["foamSize"].is_string())
+      {
+        throw 505;
+      }
+      string foamSize = req["foamSize"];
+      vector<string> foamSizeTypeStrings = coffeeMachine.getFoamSizeValues();
+      auto it = find(foamSizeTypeStrings.begin(), foamSizeTypeStrings.end(), foamSize);
+
+      if (it == foamSizeTypeStrings.end())
+      {
+        throw 505;
+      }
+    }
+    catch (int error)
+    {
+      res["status"] = "Invalid foam size!";
+      response.send(Http::Code::Bad_Request, res.dump(4));
+      return;
+    }
+
+    //coffeeStrength validation
+    try
+    {
+      if (!req["coffeeStrength"].is_number_integer())
+      {
+        throw 505;
+      }
+      int coffeeStrength = req["coffeeStrength"];
+
+      if (coffeeStrength < 45 || coffeeStrength > 100)
+      {
+        throw 505;
+      }
+    }
+    catch (int error)
+    {
+      res["status"] = "Invalid coffee strength!";
+      response.send(Http::Code::Bad_Request, res.dump(4));
+      return;
+    }
+
+    string type = req["type"];
+    string cupSize = req["cupSize"];
+    int coffeeStrength = req["coffeeStrength"];
+    string foamSize = req["foamSize"];
+
+    int availableMilk = coffeeMachine.getMilkLevel();
+    int availableWater = coffeeMachine.getWaterLevel();
+    int availableBeans = coffeeMachine.getBeansLevel();
+    int cleanLevel = coffeeMachine.getCleanLevel();
+
+    json coffeeRecipes = coffeeMachine.getCoffeeRecipes();
+    int req_milkLevel = int(coffeeRecipes[type][1]);
+    int req_waterLevel = int(coffeeRecipes[type][2]);
+    int req_beansLevel = int(coffeeRecipes[type][3]);
+
+    if (availableMilk < req_milkLevel)
+    { // Aici vin resursele custom de la featureul lui Samer
+      res["statusMilk"] = "Not enough milk - Refill coffee machine!";
+    }
+    if (availableWater < req_waterLevel)
+    { // Aici vin resursele custom de la featureul lui Samer
+      res["statusWater"] = "Not enough water - Refill coffee machine!";
+    }
+    if (availableBeans < req_beansLevel)
+    { // Aici vin resursele custom de la featureul lui Samer
+      res["statusBeans"] = "Not enough beans - Refill coffee machine!";
+    }
+    if (cleanLevel <= 0)
+    {
+      res["statusClean"] = "Too dirty - Clean coffee machine!";
+    }
+    if (res.contains("statusMilk") || res.contains("statusWater") || res.contains("statusBeans") || res.contains("statusClean"))
+    {
+      response.send(Http::Code::Bad_Request, res.dump(4));
+      return;
+    }
+
+    // Set coffee
+    coffeeMachine.setCoffeeType(type);
+    coffeeMachine.setCupSize(cupSize);
+    coffeeMachine.setFoamSize(foamSize);
+    coffeeMachine.setCoffeeStrength(coffeeStrength);
+
+    availableMilk -= req_milkLevel; 
+    coffeeMachine.setMilkLevel(availableMilk);
+
+    availableWater -= req_waterLevel; 
+    coffeeMachine.setWaterLevel(availableWater);
+
+    availableBeans -= req_beansLevel; 
+    coffeeMachine.setBeansLevel(availableBeans);
+
+    cleanLevel -= 5;
+    coffeeMachine.setCleanLevel(cleanLevel);
+
+    // Fill json for response
+    res["type"] = coffeeMachine.getCoffeeType();
+    res["cupSize"] = coffeeMachine.getCupSize();
+    res["coffeeStrength"] = coffeeMachine.getCoffeeStrength();
+    res["foamSize"] = coffeeMachine.getFoamSize();
+    res["status"] = "Coffee done :)";
+
+    // All good - send the coffee
     response.send(Http::Code::Ok, res.dump(4));
   }
 
   void cleanLevel(const Rest::Request &request, Http::ResponseWriter response)
   {
     json res;
+
     // We can see how dirty the coffee machine is before cleaning it
     int cleanLevel = coffeeMachine.getCleanLevel();
     if (cleanLevel < 10)
@@ -176,6 +365,7 @@ private:
     response.send(Http::Code::Ok, res.dump(4));
   }
 
+
   void getLedStrip(const Rest::Request &request, Http::ResponseWriter response)
   {
     json res;
@@ -188,10 +378,8 @@ private:
     }
     else 
     {
-      
       color=coffeeMachine.getLedStripColor();
-      res["status"]="LedStrip is on with color"+color;
-      
+      res["status"] = "LedStrip is on with color "+color;
     }
     
 
@@ -209,13 +397,14 @@ private:
     cout << req.dump(4); //4 spaces as tab in json
 
     string color=req["color"];
-    bool state = req["state"];
+    
 
     json res;
     
     //need to add this everytime
     response.headers().add<Pistache::Http::Header::ContentType>(MIME(Application, Json));
-
+   try{
+    bool state = req["state"];
     //validate input wih regex
     if ( regex_match (color, regex("#[a-fA-F0-9]{6}") ))
     { 
@@ -236,8 +425,102 @@ private:
     else
     { 
        //send back json response
+       res["status"] = "Color validation failed!";
        response.send(Http::Code::Bad_Request, res.dump(4));
     }
+   }
+   catch(exception e)
+   {
+    res["status"] = "Setting LedStrip failed!";
+    response.send(Http::Code::Bad_Request, res.dump(4));
+   }
+  }
+
+
+  void getRefillResourceLevels(const Rest::Request &request, Http::ResponseWriter response)
+  {
+    json res;
+
+    int milkLevel = coffeeMachine.getMilkLevel();
+    int waterLevel = coffeeMachine.getWaterLevel();
+    int beansLevel = coffeeMachine.getBeansLevel();
+
+    res["milkLevel"] = "Milk level: " + to_string(milkLevel) + "%";
+    res["waterLevel"] = "Water level : " + to_string(waterLevel) + " %";
+    res["beansLevel"] = "Beans level : " + to_string(beansLevel) + " %";
+
+    res["status"] = (milkLevel < 30 || waterLevel < 30 || beansLevel < 30) ? "One or more resource levels need a refill" : "Resource levels are good";
+
+    response.headers().add<Pistache::Http::Header::ContentType>(MIME(Application, Json));
+    response.send(Http::Code::Ok, res.dump(4));
+  }
+
+  void refillResourceLevel(const Rest::Request &request, Http::ResponseWriter response)
+  {
+    json req = json::parse(request.body());
+    cout << req.dump(4); //4 spaces as tab in json
+
+    json res;
+
+    try
+    {
+      if (!req["resourceType"].is_string())
+      {
+        throw 505;
+      }
+
+      string resourceType = req["resourceType"];
+
+      if (resourceType == "MILK")
+      {
+        if (coffeeMachine.getMilkLevel() > 99)
+        {
+          res["status"] = "Milk level is already full.";
+        }
+        else
+        {
+          coffeeMachine.setMilkLevel(100);
+          res["status"] = "Milk level has been refilled.";
+        }
+      }
+      else if (resourceType == "WATER")
+      {
+        if (coffeeMachine.getWaterLevel() > 99)
+        {
+          res["status"] = "Water level is already full.";
+        }
+        else
+        {
+          coffeeMachine.setWaterLevel(100);
+          res["status"] = "Water level has been refilled.";
+        }
+      }
+      else if (resourceType == "BEANS")
+      {
+        if (coffeeMachine.getBeansLevel() > 99)
+        {
+          res["status"] = "Beans level is already full.";
+        }
+        else
+        {
+          coffeeMachine.setBeansLevel(100);
+          res["status"] = "Beans level has been refilled.";
+        }
+      }
+      else
+      {
+        throw 505;
+      }
+    }
+    catch (int error)
+    {
+      res["status"] = "Invalid resource type!";
+      response.send(Http::Code::Bad_Request, res.dump(4));
+      return;
+    }
+
+    response.headers().add<Pistache::Http::Header::ContentType>(MIME(Application, Json));
+    response.send(Http::Code::Ok, res.dump(4));
   }
 
   // Defining the class of the CoffeeMachine. It should model the entire configuration of the CoffeeMachine
@@ -267,10 +550,47 @@ private:
       return coffeeTypeString[coffeeType];
     }
 
-    // DO SAME THING FOR REST OF ENUMS
+    // CUP SIZE
+    // Setter
+    void setCupSize(string value)
+    {
+      // Find index of coffee type string
+      auto it = find(cupSizeString.begin(), cupSizeString.end(), value);
 
-    // ALSO WE COULD ADD SOME VALIDATIONS BEFORE SETTING BUT I DON'T KNOW IF WE SHOULD DO
-    // THIS HERE IN THE SETTERS, AND RETURN 0 IF VALIDATION FAILED, OR DO IT IN ROUTE FUNCTIONS
+      if (it != cupSizeString.end())
+      {                                         // If found
+        int index = it - cupSizeString.begin(); // Get index
+        cupSize = static_cast<CUP_SIZE>(index); // Int to enum
+      }
+      // We could return 0 or 1 depending if enum was found and set
+    }
+
+    // Getter
+    string getCupSize()
+    {
+      return cupSizeString[cupSize];
+    }
+
+    // FOAM SIZE
+    // Setter
+    void setFoamSize(string value)
+    {
+      // Find index of coffee type string
+      auto it = find(foamSizeString.begin(), foamSizeString.end(), value);
+
+      if (it != foamSizeString.end())
+      {                                           // If found
+        int index = it - foamSizeString.begin();  // Get index
+        foamSize = static_cast<FOAM_SIZE>(index); // Int to enum
+      }
+      // We could return 0 or 1 depending if enum was found and set
+    }
+
+    // Getter
+    string getFoamSize()
+    {
+      return foamSizeString[foamSize];
+    }
 
     // COFFEE STRENGTH
     // Setter
@@ -362,6 +682,35 @@ private:
     {
       return ledStripcolor;
     }
+    
+    vector<string> getCoffeeTypeValues()
+    {
+      return coffeeTypeString;
+    }
+
+    vector<string> getCupSizeValues()
+    {
+      return cupSizeString;
+    }
+
+    vector<string> getFoamSizeValues()
+    {
+      return foamSizeString;
+    }
+
+    vector<string> getResourceTypeValues()
+    {
+      return resourceTypeString;
+    }
+    json getCoffeeRecipes()
+    {
+      return coffeeRecipes;
+    }
+    void setCustomRecipe(vector<int> ingredients)
+    {
+      coffeeTypeString.push_back("CUSTOM");
+      coffeeRecipes["CUSTOM"] = ingredients;
+    }
 
   private:
     // Defining and instantiating settings.
@@ -378,6 +727,9 @@ private:
     // Can't find another easy way to convert string to enum and back so I'm gonna use this
     vector<string> coffeeTypeString =
         {"CAPPUCCINO", "ESPRESSO", "LATTE_MACHIATTO", "CAFFE_LATTE", "DOPPIO", "AMERICANO"};
+
+    vector<string> resourceTypeString =
+        {"MILK", "WATER", "BEANS"};
 
     //Enum names are in global scope so they must be unique => cant have CUP_SIZE::S and FOAM_SIZE::S
     enum CUP_SIZE
@@ -414,6 +766,13 @@ private:
     bool ledStrip = false;
 
     string ledStripcolor;
+
+    json coffeeRecipes = {
+        {"CAPPUCCINO", {50, 5, 10, 5}},
+        {"ESPRESSO", {100, 0, 10, 5}},
+        {"LATTE_MACHIATTO", {50, 10, 10, 5}},
+        {"DOPPIO", {100, 0, 7, 10}},
+        {"AMERICANO", {60, 8, 7, 5}}};
   };
 
   // Create the lock which prevents concurrent editing of the same variable
@@ -421,7 +780,7 @@ private:
   using Guard = std::lock_guard<Lock>;
   Lock coffeeMachineLock;
 
-  // Instance of the microwave model
+  // Instance of the microwave model // I think you mean coffee machine model
   CoffeeMachine coffeeMachine;
 
   // Defining the httpEndpoint and a router.
