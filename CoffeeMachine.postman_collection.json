@@ -1,0 +1,197 @@
+{
+	"info": {
+		"_postman_id": "76febe1a-9ce1-407e-9d60-6c1b3d4bf1e8",
+		"name": "CoffeeMachine",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Make a coffee",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"type\": \"CAPPUCCINO\",\r\n    \"cupSize\": \"CUP_S\",\r\n    \"foamSize\": \"FOAM_M\",\r\n    \"coffeeStrength\": 70\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://localhost:9080/coffee",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "9080",
+					"path": [
+						"coffee"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Add custom coffee recipe",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"milkLevel\": 15,\r\n    \"coffeeStrength\": 80,\r\n    \"beansLevel\": 9,\r\n    \"waterLevel\": 1\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://localhost:9080/customCoffee",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "9080",
+					"path": [
+						"customCoffee"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Get clean level",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:9080/getCleanLevel",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "9080",
+					"path": [
+						"getCleanLevel"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Clean coffee machine",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:9080/cleanCoffeeMachine",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "9080",
+					"path": [
+						"cleanCoffeeMachine"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Get Resource Levels",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:9080/getResourceLevels",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "9080",
+					"path": [
+						"getResourceLevels"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Refill",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"resourceType\": \"MILK\"\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://localhost:9080/refillResourceLevel",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "9080",
+					"path": [
+						"refillResourceLevel"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Get LedStrip State",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:9080/getLedStrip",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "9080",
+					"path": [
+						"getLedStrip"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Set LedStrip State",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"color\":\"#c9fce8\",\r\n    \"state\":true\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://localhost:9080/setLedStrip",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "9080",
+					"path": [
+						"setLedStrip"
+					]
+				}
+			},
+			"response": []
+		}
+	]
+}
