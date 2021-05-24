@@ -1,0 +1,133 @@
+{
+    "input-buffers":{
+        "1": {
+            "token-delimitators": "",
+            "protocol": "HTTP",
+            "prefix": "curl -d '{\"type\":\"value1\", \"cupSize\":\"value2\", \"coffeeStrength\":\"value3\", \"foamSize\":\"value4\"}' -H \"Content-Type: application/json\" -X POST 'http://127.0.0.1:9080/'",
+            //Correct JSON will be:{"type":["CAPPUCCINO", "ESPRESSO", "LATTE_MACHIATTO", "CAFFE_LATTE", "DOPPIO", "AMERICANO"]} or {"cupSize":"CUP_S", "CUP_M", "CUP_L", "CUP_XL"} or {"coffeeStrength": 45} or {"foamSize":"FOAM_S", "FOAM_M", "FOAM_L"}
+            "buffer-tokens":[
+                {
+                    "name":"Espressor coffee",
+                    "description":"Prepare default coffee",
+                    "token-type":"string",
+                    "byte-size":10,
+                    "regex-rule": "[a-zA-Z]*", // Correct input will be: [coffee]
+                    "optional": false
+                }
+            ]
+        },
+        "2": {
+            "token-delimitators": "",
+            "protocol": "HTTP",
+            "prefix": "curl -d '{\"milkLevel\":\"value1\", \"beansLevel\":\"value2\", \"coffeeStrength\":\"value3\", \"waterLeve\":\"value4\"}' -H \"Content-Type: application/json\" -X POST 'http://127.0.0.1:9080/'",
+            //Correct JSON will be:{"milkLevel":100} or {"beansLevel":100} or {"coffeeStrength": 45} or {"waterLeve":"FOAM_S", 0}
+            "buffer-tokens":[
+                {
+                    "name":"Espressor make a custom recipe",
+                    "description":"Set a custom recipe for you own personalised coffee",
+                    "token-type":"string",
+                    "byte-size":10,
+                    "regex-rule": "[a-zA-Z]*", // Correct input will be: [customCoffee]
+                    "optional": false
+                },
+            ]
+        },
+        "3": {
+            "token-delimitators": "",
+            "protocol": "HTTP",
+            "prefix":"curl -XPOST 'http://127.0.0.1:9080/'",
+            //Correct JSON will be: {"amountWater":200}
+            "buffer-tokens":[
+                {
+                    "name":"Clean the espressor",
+                    "description":"",
+                    "token-type":"string",
+                    "byte-size":10,
+                    "regex-rule": "[a-zA-Z]*", // Correct inputs will be: [cleanCoffeeMachine]
+                    "optional": false
+                }
+            ]
+          },
+        "4": {
+            "token-delimitators": "",
+            "protocol": "HTTP",
+            "prefix": "curl -X POST -H \"Content-Type: application/json\" \\\n  -d '{\"color\": \"value\"}' \\\n 'http://127.0.0.1:9080/'",
+            //Correct JSON will be:{"refill":"orange"}
+            "buffer-tokens":[
+                {
+                    "name":"Espressor led strip",
+                    "description":"Turn on/off or change led strip color",
+                    "token-type":"string",
+                    "byte-size":10,
+                    "regex-rule": "[a-zA-Z]*", // Correct inputs will be: [setLedStrip]
+                    "optional": false
+                }
+            ]
+        },
+        "5": {
+            "token-delimitators": "",
+            "protocol": "HTTP",
+            "prefix": "curl -X POST -H \"Content-Type: application/json\" \\\n  -d '{\"resourceType\": \"value\"}' \\\n 'http://127.0.0.1:9080/'",
+            //Correct JSON will be:{"resourceType":"MILK"} or {"resourceType":"WATER"} or {"resourceType":"BEANS"}
+            "buffer-tokens":[
+                {
+                    "name":"Espressor refill",
+                    "description":"Refill the coffee machine with water, milk and beans",
+                    "token-type":"string",
+                    "byte-size":10,
+                    "regex-rule": "[a-zA-Z]*", // Correct inputs will be: [refillResourceLevel]
+                    "optional": false
+                }
+            ]
+        },
+    },
+    "output-buffers":{
+        "1": {
+            "token-delimitators": "",
+            "protocol": "HTTP",
+            "prefix": "curl -XGET 'http://127.0.0.1:9080/'",
+            "buffer-tokens":[
+                {
+                    "name":"Espressor clean",
+                    "description":"Display the clean level of the coffee machine",
+                    "token-type":"string",
+                    "byte-size":10,
+                    "regex-rule": "[a-zA-Z]*", // Correct inputs will be: [getCleanLevel]
+                    "optional": false
+                },
+            ]
+        },
+        "2": {
+            "token-delimitators": "",
+            "protocol": "HTTP",
+            "prefix": "curl -XGET 'http://127.0.0.1:9080/'",
+            "buffer-tokens": [
+                {
+                    "name": "Espressor led strip",
+                    "description": "See the state of your coffee machine's led strip",
+                    "token-type": "string",
+                    "byte-size": 10,
+                    "regex-rule": "[a-zA-Z]*",
+                    // Correct inputs will be: [getLedStrip]
+                    "optional": false
+                },
+            ]
+        },
+        "3": {
+            "token-delimitators": "",
+            "protocol": "HTTP",
+            "prefix": "curl -XGET 'http://127.0.0.1:9080/'",
+            "buffer-tokens": [
+                {
+                    "name": "Espressor details",
+                    "description": "Check your coffee machine's resources (water, milk, etc.)",
+                    "token-type": "string",
+                    "byte-size": 10,
+                    "regex-rule": "[a-zA-Z]*",
+                    // Correct inputs will be: [getResourceLevels]
+                    "optional": false
+                },
+            ]
+        },
+    }
+}
