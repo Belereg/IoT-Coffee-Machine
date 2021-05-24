@@ -15,14 +15,14 @@ Now you can test the server by using curl or Postman (you can use our Postman co
 
 #### Endpoints
 
-POST `/coffee` - Make a coffee cup
+POST `/coffee` - Make a coffee cup\
 POST `/customCoffee` - Add a custom coffee with your own settings
 
-GET `/getCleanLevel` - Check how clean your coffee maker is
+GET `/getCleanLevel` - Check how clean your coffee maker is\
 POST `/cleanCoffeeMachine` - Clean your coffee maker
 
-GET `/getLedStrip` - See the state of your coffee machine's led strip
+GET `/getLedStrip` - See the state of your coffee machine's led strip\
 POST `/setLedStrip` - Turn on/off or change led strip color
 
-GET `/getResourceLevels` - Check your coffee machine's resources (water, milk, etc.)
+GET `/getResourceLevels` - Check your coffee machine's resources (water, milk, etc.)\
 POST `/refillResourceLevel` - Refill water, milk, etc.
